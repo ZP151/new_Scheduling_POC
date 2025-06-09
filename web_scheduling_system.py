@@ -9,27 +9,26 @@ import json
 import os
 
 # ===============================================
-# 数据库配置宏 - Database Configuration Macros
+#  Database Configuration Macros
 # ===============================================
-# 修改这里的配置以适应你的环境
+
 # Modify these settings to match your environment
 
-# 数据库服务器配置
+
 DB_SERVER = "localhost"
 DB_NAME = "TestSchedulingDB"
 DB_DRIVER = "ODBC Driver 17 for SQL Server"
 
-# 数据库用户配置 - 当前使用专用账户
+
 # Database User Configuration - Currently using dedicated account
 DB_USER = "SchedulingAppUser"
 DB_PASSWORD = "SchedulingApp2025!"
 
-# sa账户配置 (备用)
+
 # sa account configuration (backup)
 # DB_USER = "sa"
 # DB_PASSWORD = "Aa764144231!"
 
-# 如果要使用Windows身份验证，设置为True并确保服务账户有数据库权限
 # For Windows Authentication, set to True and ensure service account has DB permissions
 USE_WINDOWS_AUTH = False
 
@@ -82,10 +81,10 @@ class WebSchedulingSystem:
         # Available options cache
         self.available_options = {}
         
-        # Time slot management - 禁用的时间段，设置初始值
+        # Time slot management - 
         self.disabled_time_slots = self._initialize_disabled_time_slots()
         
-        # 当前调度结果存储
+       
         self.current_schedule_results = {
             'scheduled_sessions': [],
             'conflicts': [],
@@ -104,7 +103,7 @@ class WebSchedulingSystem:
         ]
     
     def _initialize_disabled_time_slots(self):
-        """初始化禁用的时间段，只保留7/49个时间段可用"""
+        """Initialize disabled time slots, only keeping 7/49 time slots available"""
         days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         periods = [
             ("08:00", "09:15", "Period 1"),
@@ -116,14 +115,14 @@ class WebSchedulingSystem:
             ("17:30", "18:45", "Period 7"),
         ]
         
-        # 生成所有时间段ID
+        # Generate all time slot IDs
         all_time_slots = set()
         for day in days:
             for start, end, name in periods:
                 time_id = f"{day}_{start}-{end}"
                 all_time_slots.add(time_id)
         
-        # 只保留7个可用时间段（例如：周一到周五的前两个时间段，加上周三的第三个时间段）
+        # Only keep 7 available time slots (e.g., Monday to Friday's first two periods, plus Wednesday's third period)
         available_slots = {
             "Monday_08:00-09:15",
             "Monday_09:30-10:45", 
@@ -134,7 +133,7 @@ class WebSchedulingSystem:
             "Friday_08:00-09:15"
         }
         
-        # 返回需要禁用的时间段（总共49个减去7个可用的）
+        # Return disabled time slots (49 total minus 7 available)
         disabled_slots = all_time_slots - available_slots
         return disabled_slots
     
@@ -221,7 +220,7 @@ class WebSchedulingSystem:
         if 'subjects' not in self.available_options:
             self.load_available_resources()
         
-        # 使用去重后的课程数量统计
+        # Use deduplicated course count statistics
         subject_sql = """
         SELECT cc.Subject, cc.Acad_Group, 
                COUNT(DISTINCT cc.Course_Code) as Course_Count
@@ -232,7 +231,7 @@ class WebSchedulingSystem:
         ORDER BY cc.Subject
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -260,7 +259,7 @@ class WebSchedulingSystem:
         ORDER BY cc.Course_Code
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -284,7 +283,7 @@ class WebSchedulingSystem:
             return []
         
         placeholders = ','.join(['?' for _ in course_codes])
-        # 修复：简化查询，不依赖CourseOffering JOIN，因为新创建的ClassSection的Offer_Nbr可能为NULL
+        # Fix: Simplify query, don't rely on CourseOffering JOIN, because new ClassSection's Offer_Nbr may be NULL
         classes_sql = f"""
         SELECT 
             cs.Class_Nbr, cs.Catalog, cs.Section, cs.Cap_Enrl, cs.Tot_Enrl, cs.Class_Stat,
@@ -301,7 +300,7 @@ class WebSchedulingSystem:
         ORDER BY cc.Course_Code, cs.Section
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -333,7 +332,7 @@ class WebSchedulingSystem:
         ORDER BY t.Last_Name, t.First_Name
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -390,7 +389,7 @@ class WebSchedulingSystem:
         WHERE cs.Class_Nbr IN ({class_placeholders}) AND cs.Class_Stat = 'A'
         """
         
-        # 使用pyodbc连接避免SQLAlchemy参数问题
+        # Use pyodbc connection to avoid SQLAlchemy parameter issues
         cursor = self.conn.cursor()
         cursor.execute(classes_sql, self.selections['classes'])
         
@@ -402,7 +401,7 @@ class WebSchedulingSystem:
             classes_data.append(dict(zip(columns, row)))
         
         # Generate time slots
-        time_slots = self.get_available_time_slots()  # 使用可用时间段（排除禁用的）
+        time_slots = self.get_available_time_slots()  # Use available time slots (excluding disabled)
         
         # Get available rooms and teachers
         available_rooms = self.selections['rooms'] if self.selections['rooms'] else [r['Room_ID'] for r in self.get_available_rooms()]
@@ -428,7 +427,7 @@ class WebSchedulingSystem:
             WHERE ci.Class_Nbr = ? AND ci.Role = 'PI'
             """
             
-            # 使用pyodbc查询老师信息
+            # Use pyodbc to query teacher information
             teacher_cursor = self.conn.cursor()
             teacher_cursor.execute(teacher_sql, class_nbr)
             teacher_rows = teacher_cursor.fetchall()
@@ -462,7 +461,7 @@ class WebSchedulingSystem:
         if conflicts:
             self._save_conflicts(conflicts)
         
-        # 保存当前调度结果到内存
+        # Save current schedule results to memory
         self.current_schedule_results = {
             'scheduled_sessions': scheduled_sessions,
             'conflicts': conflicts,
@@ -470,7 +469,7 @@ class WebSchedulingSystem:
             'timestamp': datetime.now()
         }
         
-        # Generate timetable view (不生成Excel文件)
+        # Generate timetable view (do not generate Excel file)
         timetable_data = self._generate_timetable_view(scheduled_sessions)
         
         return {
@@ -503,7 +502,7 @@ class WebSchedulingSystem:
                     'start_time': start,
                     'end_time': end,
                     'period_name': name,
-                    'time_id': f"{day}_{start[:5]}-{end[:5]}"  # 保持time_id格式不变（用于禁用时间段匹配）
+                    'time_id': f"{day}_{start[:5]}-{end[:5]}"  # Keep time_id format (for disabled time slot matching)
                 })
         
         return time_slots
@@ -552,7 +551,7 @@ class WebSchedulingSystem:
                     'Mtg_End': time_slot['end_time'],
                     'Room_ID': room_id,
                     'Facil_ID': room.get('Facil_ID', room_id),
-                    'Campus': self.selections.get('campus', 'AD'),  # 使用用户选择的campus
+                    'Campus': self.selections.get('campus', 'AD'),  # Use user-selected campus
                     'Start_Date': '2024-09-01',
                     'End_Date': '2024-12-15',
                     'F_ID': assigned_teacher,
@@ -571,8 +570,8 @@ class WebSchedulingSystem:
     def _create_conflict_record(self, class_info, available_rooms, assigned_teacher, required_capacity):
         """Create conflict record with proper field order"""
         return {
-            'room_id': None,  # 无法分配的教室
-            'day': None,      # 无法分配的日期
+            'room_id': None,  # Unable to assign room
+            'day': None,      # Unable to assign date
             'Course_ID': class_info.get('Course_Code', ''),
             'Section': class_info['Section'],
             'Mtg_Start': None,
@@ -591,7 +590,7 @@ class WebSchedulingSystem:
             'Conflict_Type': 'No_Suitable_Time_Room',
             'Conflict_Reason': f'Unable to find suitable time and room for capacity {required_capacity}',
             'Required_Room_Capacity': required_capacity,
-            'Campus': self.selections.get('campus', 'AD')  # 使用用户选择的campus
+            'Campus': self.selections.get('campus', 'AD')  # Use user-selected campus
         }
     
     def _extract_campus_from_location(self, location):
@@ -695,7 +694,7 @@ class WebSchedulingSystem:
             WHERE cs.Class_Nbr = ?
             """
             
-            # 使用pyodbc查询课程详情
+            # Use pyodbc to query course details
             details_cursor = self.conn.cursor()
             details_cursor.execute(class_sql, (session['Room_ID'], class_nbr))
             details_rows = details_cursor.fetchall()
@@ -716,13 +715,16 @@ class WebSchedulingSystem:
         
         return timetable
     
+    
+    
+    
     def export_schedule_results_to_excel(self):
         """Export the latest schedule results including scheduled sessions and conflicts"""
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"Schedule_Results_{timestamp}.xlsx"
             
-            # 检查是否已生成调度结果
+            # Check if schedule results have been generated
             if not self.current_schedule_results['generated']:
                 return {
                     'success': False,
@@ -738,15 +740,15 @@ class WebSchedulingSystem:
                     'error': 'No schedule data to export.'
                 }
             
-            # 获取已调度的课程完整信息
+            # Get complete scheduled course information
             scheduled_data = []
             if scheduled_sessions:
                 class_nbrs = [str(session['Class_Nbr']) for session in scheduled_sessions]
                 if class_nbrs:
-                    # 创建一个mapping，从class_nbr到session数据
+                    # Create a mapping from class_nbr to session data
                     session_map = {str(session['Class_Nbr']): session for session in scheduled_sessions}
                     
-                    # 使用一个SQL查询获取所有课程的完整信息
+                    # Use a SQL query to get complete information for all courses
                     placeholders = ','.join(['?' for _ in class_nbrs])
                     complete_sql = f"""
                     SELECT 
@@ -772,13 +774,13 @@ class WebSchedulingSystem:
                         cursor.execute(complete_sql, class_nbrs)
                         
                         for row in cursor.fetchall():
-                            # 创建包含所有标准列的记录
+                            # Create a record with all standard columns
                             record = {}
                             for i, col_name in enumerate(self.standard_columns):
                                 record[col_name] = row[i] if i < len(row) else None
                             
-                            # 从session_map获取调度相关信息并覆盖
-                            class_nbr = str(row[3])  # Class_Nbr在第4位
+                            # Get scheduled session information from session_map and overwrite
+                            class_nbr = str(row[3])  # Class_Nbr is in the 4th position
                             if class_nbr in session_map:
                                 session_data = session_map[class_nbr]
                                 
@@ -796,8 +798,8 @@ class WebSchedulingSystem:
                             
                             scheduled_data.append(record)
                     except Exception as e:
-                        print(f"获取完整课程信息时出错: {str(e)}")
-                        # 如果查询失败，创建基本记录
+                        print(f"Error getting complete course information: {str(e)}")
+                        # If query fails, create basic record
                         for session in scheduled_sessions:
                             basic_record = {col: None for col in self.standard_columns}
                             basic_record.update({
@@ -814,17 +816,17 @@ class WebSchedulingSystem:
                             })
                             scheduled_data.append(basic_record)
             
-            # 创建DataFrame，确保按标准列顺序排列
+            # Create DataFrame, ensure standard column order
             scheduled_df = pd.DataFrame(scheduled_data)
             if len(scheduled_df) > 0:
                 scheduled_df = scheduled_df.reindex(columns=self.standard_columns, fill_value=None)
             
-            # 保存到Excel - 只导出scheduled sessions，不导出conflicts
+            # Save to Excel - only export scheduled sessions, not conflicts
             with pd.ExcelWriter(filename, engine='openpyxl') as writer:
                 if len(scheduled_df) > 0:
                     scheduled_df.to_excel(writer, sheet_name='Scheduled_Sessions', index=False)
                 
-                # 添加摘要信息页
+                # Add summary information page
                 summary_data = {
                     'Item': ['Generation Time', 'Scheduled Sessions', 'Conflicts', 'Total Classes'],
                     'Value': [
@@ -837,26 +839,26 @@ class WebSchedulingSystem:
                 summary_df = pd.DataFrame(summary_data)
                 summary_df.to_excel(writer, sheet_name='Summary', index=False)
             
-            print(f"Excel文件已生成: {filename}")
-            print(f"包含完整的 {len(self.standard_columns)} 列数据")
-            print(f"只导出已调度的课程，不包含冲突记录")
+            print(f"Excel file generated: {filename}")
+            print(f"Contains complete {len(self.standard_columns)} columns")
+            print(f"Only export scheduled courses, not conflicts")
             return {
                 'success': True,
                 'filename': filename,
-                'record_count': len(scheduled_df),  # 只计算scheduled sessions
+                'record_count': len(scheduled_df),  # Only calculate scheduled sessions
                 'scheduled_count': len(scheduled_df),
-                'conflicts_count': len(conflicts)  # 仍然返回冲突数量用于统计，但不导出
+                'conflicts_count': len(conflicts)  # Still return conflict count for statistics, but not exported
             }
                 
         except Exception as e:
-            print(f"生成Excel文件时出错: {str(e)}")
+            print(f"Error generating Excel file: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)
             }
     
     def import_excel_data(self, file_path):
-        """Simulate Excel data import (测试用模拟功能)"""
+        """Simulate Excel data import (for testing purposes)"""
         try:
             # Read Excel file for simulation
             df = pd.read_excel(file_path)
@@ -927,6 +929,7 @@ class WebSchedulingSystem:
             # Reorder columns to match standard format
             df = df.reindex(columns=self.standard_columns, fill_value=None)
             
+            
             # Save to Excel
             with pd.ExcelWriter(filename, engine='openpyxl') as writer:
                 df.to_excel(writer, sheet_name='Schedule_Data', index=False)
@@ -943,13 +946,13 @@ class WebSchedulingSystem:
             }
 
     def get_available_time_slots(self):
-        """获取可用的时间段（排除禁用的）"""
+        """Get available time slots (excluding disabled ones)"""
         all_slots = self._generate_time_slots()
         available_slots = [slot for slot in all_slots if slot['time_id'] not in self.disabled_time_slots]
         return available_slots
     
     def get_schedule_results_status(self):
-        """获取当前调度结果的状态"""
+        """ Get current schedule results status"""
         return {
             'has_results': self.current_schedule_results['generated'],
             'scheduled_count': len(self.current_schedule_results['scheduled_sessions']),
@@ -958,11 +961,11 @@ class WebSchedulingSystem:
         }
     
     def disable_time_slots(self, time_slot_patterns):
-        """批量禁用时间段 - 现在接受精确的时间段ID列表"""
-        # 清空现有的禁用时间段
+        """Batch disable time slots - now accepts exact time slot ID list"""
+        # Clear existing disabled time slots
         self.disabled_time_slots.clear()
         
-        # 添加新的禁用时间段
+        # Add new disabled time slots
         for time_slot_id in time_slot_patterns:
             if isinstance(time_slot_id, str) and time_slot_id.strip():
                 self.disabled_time_slots.add(time_slot_id.strip())
@@ -974,16 +977,16 @@ class WebSchedulingSystem:
         }
     
     def enable_all_time_slots(self):
-        """重新启用所有时间段"""
+        """Re-enable all time slots"""
         self.disabled_time_slots.clear()
         return {'success': True, 'message': 'All time slots enabled'}
 
     def get_smart_rooms_for_courses(self, course_codes):
-        """根据选择的课程智能推荐合适的教室"""
+        """Smartly recommend suitable rooms for selected courses"""
         if not course_codes:
             return self.get_available_rooms()
         
-        # 获取课程信息
+        # Get course information
         placeholders = ','.join(['?' for _ in course_codes])
         courses_sql = f"""
         SELECT DISTINCT Course_Code, Course_Title, Subject
@@ -995,7 +998,7 @@ class WebSchedulingSystem:
         cursor.execute(courses_sql, course_codes)
         courses = cursor.fetchall()
         
-        # 分析课程类型
+        # Analyze course types
         lab_keywords = ['lab', 'laboratory', 'practical', 'experiment', 'workshop']
         computer_keywords = ['computer', 'programming', 'software', 'coding', 'it', 'csc', 'cse', 'ite']
         engineering_keywords = ['engineering', 'mec', 'civ', 'eee', 'bme', 'cad']
@@ -1011,31 +1014,31 @@ class WebSchedulingSystem:
             code_lower = str(course_code).lower() if course_code else ""
             subject_lower = str(subject).lower() if subject else ""
             
-            # 检查是否需要实验室
+            # Check if lab is needed
             if any(keyword in title_lower for keyword in lab_keywords):
                 needs_lab = True
                 
-            # 检查是否需要计算机实验室
+            # Check if computer lab is needed
             if any(keyword in title_lower or keyword in code_lower or keyword in subject_lower 
                    for keyword in computer_keywords):
                 needs_computer_lab = True
                 
-            # 检查是否需要工程实验室
+            # Check if engineering lab is needed
             if any(keyword in title_lower or keyword in subject_lower 
                    for keyword in engineering_keywords):
                 needs_engineering_lab = True
                 
-            # 检查特殊设施需求
+            # Check for special facility needs
             if ('aviation' in title_lower or 'avs' in subject_lower or
                 'architecture' in title_lower or 'arc' in subject_lower or
                 'chemistry' in title_lower or 'bio' in title_lower):
                 needs_special_facility = True
         
-        # 构建Room过滤条件
+        # Build Room filter conditions
         room_filter_conditions = []
         
         if needs_lab or needs_computer_lab or needs_engineering_lab or needs_special_facility:
-            # 需要特殊设施，优先匹配实验室
+            # Need special facilities, prioritize matching labs
             lab_conditions = []
             
             if needs_computer_lab:
@@ -1055,19 +1058,19 @@ class WebSchedulingSystem:
                 lab_conditions.append("Description LIKE '%Arch%'")
                 
             if needs_lab and not lab_conditions:
-                # 一般实验室需求
+                # General lab needs
                 lab_conditions.append("Description LIKE '%Lab%'")
                 lab_conditions.append("Description LIKE '%Laboratory%'")
             
             if lab_conditions:
                 room_filter_conditions.append(f"({' OR '.join(lab_conditions)})")
         
-        # 总是包含普通教室作为备选
+        # Always include regular classroom as backup
         room_filter_conditions.append("""(Description LIKE '%Classroom%' 
                                           OR Description LIKE '%Class%'
                                           OR Description = 'Classroom')""")
         
-        # 构建最终查询
+        # Build final query
         where_clause = f"WHERE ({' OR '.join(room_filter_conditions)})" if room_filter_conditions else ""
         
         rooms_sql = f"""
@@ -1125,7 +1128,7 @@ class WebSchedulingSystem:
         ORDER BY cc.Acad_Group, cc.Subject
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -1166,7 +1169,7 @@ class WebSchedulingSystem:
         ORDER BY COUNT(DISTINCT cc.Acad_Group) DESC, cc.Subject
         """
         
-        # 创建新的数据库连接以避免并发冲突
+        # Create new database connection to avoid concurrency conflicts
         temp_conn = self.get_temp_connection()
         
         try:
@@ -1226,7 +1229,7 @@ def create_web_api():
             .class-item { background-color: #e3f2fd; margin: 2px; padding: 4px; border-radius: 3px; font-size: 12px; }
             .results { margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }
             
-            /* 时间段管理样式 */
+            /* Time slot management style */
             .timeslot-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
             .timeslot-table th, .timeslot-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
             .timeslot-table th { background-color: #f2f2f2; font-weight: bold; }
@@ -1235,17 +1238,17 @@ def create_web_api():
             .timeslot-disabled { background-color: #f8d7da; color: #721c24; }
             .timeslot-cell:hover { opacity: 0.8; }
             
-            /* 选择框样式 */
+            /* Selection box style */
             .selection-box { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
             .checkbox-item { margin: 5px 0; }
             .checkbox-item label { display: flex; align-items: center; cursor: pointer; }
             .checkbox-item input[type="checkbox"] { margin-right: 8px; }
             
-            /* 按钮组样式 */
+            /* Button group style */
             .button-group { margin: 15px 0; }
             .button-group button { margin-right: 10px; }
             
-            /* 跨部门学科样式 */
+            /* Cross-departmental subject style */
             .cross-dept-subject { background-color: #e8f5e8; margin: 5px 0; padding: 10px; border-radius: 5px; border-left: 4px solid #28a745; }
             .cross-dept-subject h5 { margin: 0 0 5px 0; color: #155724; }
             .cross-dept-subject .subject-info { font-size: 13px; color: #666; }
@@ -1268,7 +1271,7 @@ def create_web_api():
                 box-shadow: 0 2px 4px rgba(0,123,255,0.3);
             }
             
-            /* 文件信息样式 */
+            /* File information style */
             #lastGeneratedFile {
                 background-color: #f8f9fa;
                 border: 1px solid #dee2e6;
@@ -1363,7 +1366,7 @@ def create_web_api():
                 </div>
             </div>
             
-            <!-- 时间段管理部分 -->
+            <!-- Time slot management section -->
             <div class="section">
                 <h3>9.Time Slot Management</h3>
                 <div class="status-legend">
@@ -1397,7 +1400,7 @@ def create_web_api():
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- 时间段内容将通过JavaScript动态生成 -->
+                        <!-- Time slot content will be generated dynamically through JavaScript -->
                     </tbody>
                 </table>
             </div>
@@ -1429,40 +1432,40 @@ def create_web_api():
         </div>
         
         <script>
-            // 全局变量
+            // Global variables
             let timeSlotStatus = {};
             let currentDisabledSlots = new Set();
-            let lastGeneratedFileName = '';  // 追踪最新生成的文件名
+            let lastGeneratedFileName = '';  // Track latest generated file name
             
-            // 更新选择计数的函数
+            // Update selection count function
             function updateSelectionCounts() {
-                // 更新课程选择计数
+                // Update course selection count
                 const selectedCourses = $('input[name="courses"]:checked').length;
                 $('#courseSelectionTitle').text(`6. Select Courses${selectedCourses > 0 ? ` (${selectedCourses} selected)` : ''}`);
                 
-                // 更新教师选择计数
+                // Update teacher selection count
                 const selectedTeachers = $('input[name="teachers"]:checked').length;
                 $('#teacherSelectionTitle').text(`7. Select Teachers (Optional)${selectedTeachers > 0 ? ` (${selectedTeachers} selected)` : ''}`);
                 
-                // 更新房间选择计数
+                // Update room selection count
                 const selectedRooms = $('input[name="rooms"]:checked').length;
                 $('#roomSelectionTitle').text(`8. Select Rooms (Optional)${selectedRooms > 0 ? ` (${selectedRooms} selected)` : ''}`);
             }
             
-            // 绑定选择变化事件
+            // Bind selection change events
             function bindSelectionChangeEvents() {
-                // 课程选择变化
+                // Course selection change
                 $(document).on('change', 'input[name="courses"]', function() {
                     updateSelectionCounts();
                     updateClassSections();
                 });
                 
-                // 教师选择变化
+                // Teacher selection change
                 $(document).on('change', 'input[name="teachers"]', function() {
                     updateSelectionCounts();
                 });
                 
-                // 房间选择变化
+                // Room selection change
                 $(document).on('change', 'input[name="rooms"]', function() {
                     updateSelectionCounts();
                 });
@@ -1475,8 +1478,8 @@ def create_web_api():
                 loadAcadGroups();
                 loadRooms();
                 loadTimeSlotStatus();
-                bindSelectionChangeEvents(); // 绑定选择变化事件
-                updateSelectionCounts(); // 初始化计数显示
+                bindSelectionChangeEvents(); // Bind selection change events
+                updateSelectionCounts(); // Initialize count display
             });
             
             function loadTerms() {
@@ -1548,35 +1551,35 @@ def create_web_api():
                     return this.value; 
                 }).get();
                 
-                // 清空之前的选择
+                // Clear previous selections
                 $('#subjectSelect').empty().append('<option value="">Choose Subject...</option>');
                 $('#crossDepartmentalSection').hide();
                 $('#courseSelection').html('<p>Please select a subject first...</p>');
                 $('#teacherSelection').html('<p>No courses selected...</p>');
                 $('#roomSelection').html('<p>Loading rooms...</p>');
-                loadRooms(); // 重新加载默认房间
-                updateSelectionCounts(); // 更新选择计数
+                loadRooms(); // Reload default rooms
+                updateSelectionCounts(); // Update count
                 
                 if (selectedGroups.length === 0) {
-                    // 没有选择任何学术组
+                    // No academic groups selected
                     $('#subjectSelect').prop('disabled', true);
                     $('#subjectSelectHint').text('Please select a single academic group to enable subject selection').show();
                     $('#crossDepartmentalSection').hide();
                 } else if (selectedGroups.length === 1) {
-                    // 选择了单个学术组 - 启用5.1 Select Subject
+                    // Selected single academic group - enable 5.1 Select Subject
                     $('#subjectSelect').prop('disabled', false);
                     $('#subjectSelectHint').text('Single academic group selected - you can now select subjects').show();
                     $('#crossDepartmentalSection').hide();
                     
-                    // 自动加载该学术组的学科
+                    // Automatically load subjects for the selected academic group
                     loadSubjectsForSingleGroup(selectedGroups[0]);
                 } else {
-                    // 选择了多个学术组 - 启用5.2 Cross-Departmental Subjects
+                    // Selected multiple academic groups - enable 5.2 Cross-Departmental Subjects
                     $('#subjectSelect').prop('disabled', true);
                     $('#subjectSelectHint').text('Multiple academic groups selected - use Cross-Departmental Subjects section below').show();
                     $('#crossDepartmentalSection').show();
                     
-                    // 自动加载跨部门学科和常规学科
+                    // Automatically load cross-departmental subjects and regular subjects
                     loadSubjectsForMultipleGroups(selectedGroups);
                 }
             }
@@ -1598,7 +1601,7 @@ def create_web_api():
             }
             
             function loadSubjectsForMultipleGroups(selectedGroups) {
-                // 加载常规学科到5.1部分（但保持禁用状态）
+                // Load regular subjects to 5.1 section (but keep disabled)
                 $.ajax({
                     url: '/api/subjects_multi_groups',
                     type: 'POST',
@@ -1824,7 +1827,7 @@ def create_web_api():
                 $('#teacherSelection').html('<p>No courses selected...</p>');
                 $('#roomSelection').html('<p>Loading rooms...</p>');
                 loadRooms(); // Reload default rooms
-                updateSelectionCounts(); // 更新选择计数
+                updateSelectionCounts(); // Update count
             }
             
             function loadSubjects() {
@@ -1870,7 +1873,7 @@ def create_web_api():
                 if (selectedCourses.length === 0) {
                     $('#teacherSelection').html('<p>No courses selected...</p>');
                     $('#roomSelection').html('<p>No courses selected...</p>');
-                    updateSelectionCounts(); // 更新计数
+                    updateSelectionCounts(); // Update count
                     return;
                 }
                 
@@ -1986,7 +1989,7 @@ def create_web_api():
                     });
                 }
                 
-                updateSelectionCounts(); // 更新房间选择计数
+                updateSelectionCounts(); // Update room selection count
             }
             
             function createRoomCheckbox(room, type) {
@@ -2019,7 +2022,7 @@ def create_web_api():
                         
                         if (data.length === 0) {
                             container.html('<p>No teachers found for selected courses.</p>');
-                            updateSelectionCounts(); // 更新计数
+                            updateSelectionCounts(); // Update count
                             return;
                         }
                         
@@ -2038,11 +2041,11 @@ def create_web_api():
                                 </div>
                             `);
                         });
-                        updateSelectionCounts(); // 更新计数
+                        updateSelectionCounts(); // Update count
                     },
                     error: function() {
                         $('#teacherSelection').html('<p style="color: red;">Failed to load teachers.</p>');
-                        updateSelectionCounts(); // 更新计数
+                        updateSelectionCounts(); // Update count
                         console.error('Failed to load teachers');
                     }
                 });
@@ -2055,7 +2058,7 @@ def create_web_api():
                     
                     if (data.length === 0) {
                         container.html('<p>No rooms available.</p>');
-                        updateSelectionCounts(); // 更新计数
+                        updateSelectionCounts(); // Update count
                         return;
                     }
                     
@@ -2069,15 +2072,15 @@ def create_web_api():
                             </div>
                         `);
                     });
-                    updateSelectionCounts(); // 更新计数
+                    updateSelectionCounts(); // Update count
                 }).fail(function() {
                     $('#roomSelection').html('<p style="color: red;">Failed to load rooms.</p>');
-                    updateSelectionCounts(); // 更新计数
+                    updateSelectionCounts(); // Update count
                     console.error('Failed to load rooms');
                 });
             }
             
-            // 时间段管理功能
+            // Time slot management functionality
             function loadTimeSlotStatus() {
                 $.get('/api/get_time_slot_status', function(data) {
                     timeSlotStatus = data;
@@ -2242,7 +2245,7 @@ def create_web_api():
                                 <p><strong>Available Time Slots:</strong> ${data.available_time_slots}</p>
                             `);
                             
-                            // 启用导出调度结果按钮
+                            // Enable export schedule results button
                             $('#exportScheduleBtn').prop('disabled', false).css('background-color', '#28a745');
                             
                             displayTimetable(data.timetable);
@@ -2336,7 +2339,7 @@ def create_web_api():
             }
             
             function exportScheduleResults() {
-                // 检查按钮是否可用
+                // Check if button is available
                 if ($('#exportScheduleBtn').prop('disabled')) {
                     alert('Please generate a timetable first before exporting schedule results.');
                     return;
@@ -2373,10 +2376,10 @@ def create_web_api():
                     return;
                 }
                 
-                // 使用更简单直接的下载方式
+                // Use simpler direct download method
                 const downloadUrl = `/download/${encodeURIComponent(lastGeneratedFileName)}`;
                 
-                // 直接打开下载链接
+                // Open download link directly
                 window.open(downloadUrl, '_blank');
                 
                 $('#results').html(`
@@ -2493,39 +2496,56 @@ def create_web_api():
         """Download generated Excel files"""
         from flask import send_file, abort, current_app
         import os
+        import traceback
         
         try:
-            # 安全检查：只允许下载当前目录中的文件
+            print(f"Download request for file: {filename}")
+            
+            # Security check: only allow downloading files in current directory
             if not filename or '..' in filename or '/' in filename or '\\' in filename:
+                print(f"Security check failed for filename: {filename}")
                 abort(400, description="Invalid filename")
             
-            # 检查文件是否存在
-            if not os.path.exists(filename):
+            # Get full file path
+            file_path = os.path.abspath(filename)
+            print(f"Full file path: {file_path}")
+            
+            # Check if file exists
+            if not os.path.exists(file_path):
+                print(f"File not found: {file_path}")
+                # List current directory files for debugging
+                current_files = os.listdir('.')
+                excel_files = [f for f in current_files if f.endswith(('.xlsx', '.xls'))]
+                print(f"Available Excel files in current directory: {excel_files}")
                 abort(404, description="File not found")
             
-            # 检查文件是否为Excel文件
+            # Check if file is Excel file
             if not filename.endswith(('.xlsx', '.xls')):
+                print(f"Invalid file type: {filename}")
                 abort(400, description="Invalid file type")
             
-            # 检查文件大小是否合理
-            file_size = os.path.getsize(filename)
+            # Check file size is reasonable
+            file_size = os.path.getsize(file_path)
             if file_size == 0:
+                print(f"File is empty: {filename}")
                 abort(500, description="File is empty or corrupted")
             
-            print(f"下载文件: {filename}, 大小: {file_size} bytes")
+            print(f"Sending file: {filename}, size: {file_size} bytes")
             
-            # 发送文件
+            # Send file with more explicit parameters
             return send_file(
-                filename, 
+                file_path,
                 as_attachment=True,
                 download_name=filename,
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
         except Exception as e:
-            print(f"下载文件时出错: {str(e)}")
+            print(f"Error downloading file: {str(e)}")
+            print("Full traceback:")
+            traceback.print_exc()
             abort(500, description=f"Download failed: {str(e)}")
     
-    # 添加另一个API路由以支持不同的URL格式
+    # Add another API route to support different URL formats
     @app.route('/api/download/<filename>')
     def api_download_file(filename):
         """API version of download endpoint"""
@@ -2533,20 +2553,20 @@ def create_web_api():
     
     @app.route('/api/disable_time_slots', methods=['POST'])
     def disable_time_slots():
-        """禁用指定的时间段"""
+        """Disable specified time slots"""
         patterns = request.json.get('time_slot_patterns', [])
         result = scheduler.disable_time_slots(patterns)
         return jsonify(result)
     
     @app.route('/api/enable_all_time_slots', methods=['POST'])
     def enable_all_time_slots():
-        """启用所有时间段"""
+        """Enable all time slots"""
         result = scheduler.enable_all_time_slots()
         return jsonify(result)
     
     @app.route('/api/get_time_slot_status')
     def get_time_slot_status():
-        """获取时间段状态"""
+        """Get time slot status"""
         all_slots = scheduler._generate_time_slots()
         available_slots = scheduler.get_available_time_slots()
         disabled_slots = list(scheduler.disabled_time_slots)
