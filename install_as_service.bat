@@ -65,6 +65,21 @@ echo.
 
 :: Check and create Python virtual environment
 echo [STEP 2/6] Checking and creating Python virtual environment...
+
+:: First check if virtual environment directory exists
+if exist "scheduling_env" (
+    echo [INFO] Virtual environment directory exists, checking Python executable...
+    if exist "%PYTHON_EXE%" (
+        echo [SUCCESS] Python virtual environment found and ready
+        echo [INFO] Current Python version in virtual environment:
+        "%PYTHON_EXE%" --version
+        goto venv_ready
+    ) else (
+        echo [WARNING] Virtual environment directory exists but Python executable missing
+        echo [INFO] This may indicate a corrupted environment, attempting repair...
+    )
+)
+
 if not exist "%PYTHON_EXE%" (
     echo [INFO] Python virtual environment not found, creating...
     
@@ -78,26 +93,30 @@ if not exist "%PYTHON_EXE%" (
     if %errorlevel% equ 0 (
         set PYTHON_CMD=python3.10
         echo [SUCCESS] Found Python 3.10
-    ) else (
-        python --version 2>&1 | find "3.10" >nul
-        if %errorlevel% equ 0 (
-            set PYTHON_CMD=python
-            echo [SUCCESS] Found Python 3.10 (as default python)
-        ) else (
-            echo [WARNING] Python 3.10 not found, checking available Python versions...
-            python --version >nul 2>&1
-            if %errorlevel% neq 0 (
-                echo ERROR: No Python found in PATH
-                echo Please install Python 3.10 and add it to PATH
-                echo Download from: https://www.python.org/downloads/release/python-3108/
-                pause
-                exit /b 1
-            ) else (
-                echo [WARNING] Using available Python version (recommended: Python 3.10)
-                set PYTHON_CMD=python
-            )
-        )
+        goto python_found
     )
+    
+    python --version 2>&1 | find "3.10" >nul
+    if %errorlevel% equ 0 (
+        set PYTHON_CMD=python
+        echo [SUCCESS] Found Python 3.10 (as default python)
+        goto python_found
+    )
+    
+    echo [WARNING] Python 3.10 not found, checking available Python versions...
+    python --version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo ERROR: No Python found in PATH
+        echo Please install Python 3.10 and add it to PATH
+        echo Download from: https://www.python.org/downloads/release/python-3108/
+        pause
+        exit /b 1
+    )
+    
+    echo [WARNING] Using available Python version (recommended: Python 3.10)
+    set PYTHON_CMD=python
+    
+    :python_found
     
     :: Display Python version
     echo [INFO] Using Python version:
@@ -105,10 +124,33 @@ if not exist "%PYTHON_EXE%" (
     
     :: Create virtual environment with specified Python version
     echo [INFO] Creating virtual environment 'scheduling_env' with %PYTHON_CMD%...
+    
+    :: Check if we need to stop the service first
+    sc query WebSchedulingSystem | find "RUNNING" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [INFO] Service is running, stopping it to avoid file conflicts...
+        net stop WebSchedulingSystem >nul 2>&1
+        timeout /t 3 >nul
+    )
+    
+    :: Remove existing directory if corrupted
+    if exist "scheduling_env" (
+        echo [INFO] Removing existing virtual environment directory...
+        rmdir /s /q "scheduling_env" 2>nul
+        if exist "scheduling_env" (
+            echo [ERROR] Cannot remove existing virtual environment
+            echo Please manually delete the 'scheduling_env' directory and try again
+            echo Or ensure no processes are using files in that directory
+            pause
+            exit /b 1
+        )
+    )
+    
     %PYTHON_CMD% -m venv scheduling_env
     if %errorlevel% neq 0 (
         echo ERROR: Failed to create virtual environment
         echo Please ensure Python 3.10 is properly installed
+        echo and you have write permissions to this directory
         pause
         exit /b 1
     )
@@ -136,11 +178,9 @@ if not exist "%PYTHON_EXE%" (
     "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import flask, pyodbc; print('✅ Dependencies installed successfully')"
     
     echo [SUCCESS] Virtual environment created and configured with Python 3.10
-) else (
-    echo [SUCCESS] Python virtual environment found
-    echo [INFO] Current Python version in virtual environment:
-    "%PYTHON_EXE%" --version
 )
+
+:venv_ready
 
 :: Verify Python executable
 if not exist "%PYTHON_EXE%" (
