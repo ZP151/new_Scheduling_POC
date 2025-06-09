@@ -63,15 +63,91 @@ if not exist "%NSSM_EXE%" (
 echo [SUCCESS] NSSM tool ready
 echo.
 
-:: Check Python virtual environment
-echo [STEP 2/6] Checking Python virtual environment...
+:: Check and create Python virtual environment
+echo [STEP 2/6] Checking and creating Python virtual environment...
 if not exist "%PYTHON_EXE%" (
-    echo ERROR: Python virtual environment not found
-    echo Please run run_service.bat first to setup the environment
+    echo [INFO] Python virtual environment not found, creating...
+    
+    :: Set PowerShell execution policy
+    echo [INFO] Setting PowerShell execution policy...
+    powershell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force" >nul 2>&1
+    
+    :: Check for Python 3.10 specifically
+    echo [INFO] Checking for Python 3.10...
+    python3.10 --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set PYTHON_CMD=python3.10
+        echo [SUCCESS] Found Python 3.10
+    ) else (
+        python --version 2>&1 | find "3.10" >nul
+        if %errorlevel% equ 0 (
+            set PYTHON_CMD=python
+            echo [SUCCESS] Found Python 3.10 (as default python)
+        ) else (
+            echo [WARNING] Python 3.10 not found, checking available Python versions...
+            python --version >nul 2>&1
+            if %errorlevel% neq 0 (
+                echo ERROR: No Python found in PATH
+                echo Please install Python 3.10 and add it to PATH
+                echo Download from: https://www.python.org/downloads/release/python-3108/
+                pause
+                exit /b 1
+            ) else (
+                echo [WARNING] Using available Python version (recommended: Python 3.10)
+                set PYTHON_CMD=python
+            )
+        )
+    )
+    
+    :: Display Python version
+    echo [INFO] Using Python version:
+    %PYTHON_CMD% --version
+    
+    :: Create virtual environment with specified Python version
+    echo [INFO] Creating virtual environment 'scheduling_env' with %PYTHON_CMD%...
+    %PYTHON_CMD% -m venv scheduling_env
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to create virtual environment
+        echo Please ensure Python 3.10 is properly installed
+        pause
+        exit /b 1
+    )
+    
+    :: Install dependencies
+    echo [INFO] Installing dependencies...
+    
+    :: Upgrade pip first
+    echo [INFO] Upgrading pip...
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -m pip install --upgrade pip
+    
+    :: Install basic requirements
+    echo [INFO] Installing Flask and required packages...
+    "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39
+    
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to install dependencies
+        pause
+        exit /b 1
+    )
+    
+    :: Verify installation
+    echo [INFO] Verifying installation...
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" --version
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import flask, pyodbc; print('✅ Dependencies installed successfully')"
+    
+    echo [SUCCESS] Virtual environment created and configured with Python 3.10
+) else (
+    echo [SUCCESS] Python virtual environment found
+    echo [INFO] Current Python version in virtual environment:
+    "%PYTHON_EXE%" --version
+)
+
+:: Verify Python executable
+if not exist "%PYTHON_EXE%" (
+    echo ERROR: Python executable still not found after setup
     pause
     exit /b 1
 )
-echo [SUCCESS] Python virtual environment found
 echo.
 
 :: Check application file
@@ -112,6 +188,10 @@ echo [INFO] Configuring service parameters...
 "%NSSM_EXE%" set "%SERVICE_NAME%" Description "Flask-based Web Scheduling Management System"
 "%NSSM_EXE%" set "%SERVICE_NAME%" Start SERVICE_AUTO_START
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppDirectory "%CURRENT_DIR:~0,-1%"
+
+:: Configure environment variables for production
+echo [INFO] Setting production environment variables...
+"%NSSM_EXE%" set "%SERVICE_NAME%" AppEnvironmentExtra "FLASK_ENV=production" "FLASK_DEBUG=0"
 
 :: Configure logging
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppStdout "%CURRENT_DIR:~0,-1%\logs\service_output.log"
