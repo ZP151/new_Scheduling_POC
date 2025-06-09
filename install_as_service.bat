@@ -60,7 +60,11 @@ if not exist "%NSSM_EXE%" (
     pause
     exit /b 1
 )
-echo [SUCCESS] NSSM tool ready
+echo [SUCCESS] NSSM tool ready at: %NSSM_EXE%
+
+:: Verify NSSM version and functionality
+echo [INFO] NSSM version:
+"%NSSM_EXE%" version
 echo.
 
 :: Check and create Python virtual environment
@@ -70,10 +74,27 @@ echo [STEP 2/6] Checking and creating Python virtual environment...
 if exist "scheduling_env" (
     echo [INFO] Virtual environment directory exists, checking Python executable...
     if exist "%PYTHON_EXE%" (
-        echo [SUCCESS] Python virtual environment found and ready
+        echo [SUCCESS] Python virtual environment found
         echo [INFO] Current Python version in virtual environment:
         "%PYTHON_EXE%" --version
-        goto venv_ready
+        
+        :: Check if all required packages are installed
+        echo [INFO] Checking required packages...
+        "%PYTHON_EXE%" -c "import flask, pyodbc, pandas, openpyxl, numpy" >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [SUCCESS] All required packages are installed
+            goto venv_ready
+        ) else (
+            echo [WARNING] Some required packages are missing, installing...
+            "%PYTHON_EXE%" -m pip install --upgrade pip >nul 2>&1
+            "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39 pandas==2.0.3 openpyxl numpy
+            if %errorlevel% equ 0 (
+                echo [SUCCESS] Missing packages installed
+                goto venv_ready
+            ) else (
+                echo [ERROR] Failed to install missing packages, will recreate environment
+            )
+        )
     ) else (
         echo [WARNING] Virtual environment directory exists but Python executable missing
         echo [INFO] This may indicate a corrupted environment, attempting repair...
@@ -162,9 +183,9 @@ if not exist "%PYTHON_EXE%" (
     echo [INFO] Upgrading pip...
     "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -m pip install --upgrade pip
     
-    :: Install basic requirements
-    echo [INFO] Installing Flask and required packages...
-    "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39
+    :: Install all required packages
+    echo [INFO] Installing all required packages...
+    "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39 pandas==2.0.3 openpyxl numpy
     
     if %errorlevel% neq 0 (
         echo ERROR: Failed to install dependencies
@@ -172,10 +193,15 @@ if not exist "%PYTHON_EXE%" (
         exit /b 1
     )
     
-    :: Verify installation
-    echo [INFO] Verifying installation...
+    :: Verify all required packages
+    echo [INFO] Verifying all required packages...
     "%CURRENT_DIR%scheduling_env\Scripts\python.exe" --version
-    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import flask, pyodbc; print('✅ Dependencies installed successfully')"
+    echo [INFO] Testing package imports...
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import flask; print('✅ Flask imported successfully')"
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import pyodbc; print('✅ pyodbc imported successfully')"
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import pandas; print('✅ pandas imported successfully')"
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import openpyxl; print('✅ openpyxl imported successfully')"
+    "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -c "import numpy; print('✅ numpy imported successfully')"
     
     echo [SUCCESS] Virtual environment created and configured with Python 3.10
 )
@@ -249,6 +275,17 @@ if not exist "logs" mkdir logs
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppRestartDelay 60000
 
 echo [SUCCESS] Service installed successfully
+
+:: Verify service configuration
+echo [INFO] Verifying service configuration...
+echo [INFO] Service executable path:
+"%NSSM_EXE%" get "%SERVICE_NAME%" Application
+echo [INFO] Service parameters:
+"%NSSM_EXE%" get "%SERVICE_NAME%" Parameters  
+echo [INFO] Service working directory:
+"%NSSM_EXE%" get "%SERVICE_NAME%" AppDirectory
+echo [INFO] Service environment variables:
+"%NSSM_EXE%" get "%SERVICE_NAME%" AppEnvironmentExtra
 echo.
 
 :: Start service
