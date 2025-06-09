@@ -1,5 +1,5 @@
 -- ===============================================
--- ✅ Step 1: 创建服务器级登录 Login（若不存在）
+-- Step 1: Create Server-Level Login Login (if none exists)
 -- ===============================================
 IF NOT EXISTS (
     SELECT * FROM sys.server_principals WHERE name = 'SchedulingAppUser'
@@ -18,7 +18,7 @@ END
 GO
 
 -- ===============================================
--- ✅ Step 2: 创建数据库（若不存在）
+-- Step 2: Create Database (if none exists)
 -- ===============================================
 IF NOT EXISTS (
     SELECT name FROM sys.databases WHERE name = 'TestSchedulingDB'
@@ -26,7 +26,7 @@ IF NOT EXISTS (
 BEGIN
     CREATE DATABASE [TestSchedulingDB];
     PRINT '[SUCCESS] Database TestSchedulingDB created';
-    -- 添加额外设置
+    -- Add additional settings
     ALTER DATABASE [TestSchedulingDB] SET COMPATIBILITY_LEVEL = 150;
 
     IF (1 = FULLTEXTSERVICEPROPERTY('IsFullTextInstalled'))
@@ -42,12 +42,12 @@ END
 GO
 
 -- ===============================================
--- ✅ Step 3: 切换数据库并创建 User（绑定 Login）
+-- Step 3: Switch database and create User (bind Login)
 -- ===============================================
 USE [TestSchedulingDB];
 GO
 
--- 创建或修复数据库用户
+-- Create or fix database user
 IF NOT EXISTS (
     SELECT * FROM sys.database_principals WHERE name = 'SchedulingAppUser'
 )
@@ -57,14 +57,14 @@ BEGIN
 END
 ELSE
 BEGIN
-    -- 修复登录绑定
+    -- Fix login binding
     ALTER USER [SchedulingAppUser] WITH LOGIN = [SchedulingAppUser];
     PRINT '[INFO] Database user already exists, login mapping fixed';
 END
 GO
 
 -- ===============================================
--- ✅ Step 4: 授权权限（可根据需要精简）
+-- Step 4: Grant permissions (can be simplified as needed)
 -- ===============================================
 ALTER ROLE [db_datareader] ADD MEMBER [SchedulingAppUser];
 ALTER ROLE [db_datawriter] ADD MEMBER [SchedulingAppUser];
@@ -74,10 +74,10 @@ PRINT '[SUCCESS] Permissions granted to SchedulingAppUser';
 GO
 
 -- ===============================================
--- ✅ Step 5: 创建表结构 / 插入数据 / 存储过程等内容
--- 👉 请将你的建表语句、初始数据、视图、存储过程等粘贴到此处
+-- Step 5: Create table structure / insert data / stored procedures, etc.
+--  Please paste your table creation statements, initial data, views, stored procedures, etc. here
 -- ===============================================
--- 示例：
+-- Example:
 -- CREATE TABLE Course (ID INT PRIMARY KEY, Name NVARCHAR(100));
 -- INSERT INTO Course VALUES (1, 'Math');
 -- CREATE PROCEDURE sp_GetAllCourses AS SELECT * FROM Course;
