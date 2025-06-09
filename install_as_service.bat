@@ -87,7 +87,7 @@ if exist "scheduling_env" (
         ) else (
             echo [WARNING] Some required packages are missing, installing...
             "%PYTHON_EXE%" -m pip install --upgrade pip >nul 2>&1
-            "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39 pandas==2.0.3 openpyxl numpy
+            "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install -r requirements.txt
             if %errorlevel% equ 0 (
                 echo [SUCCESS] Missing packages installed
                 goto venv_ready
@@ -184,8 +184,8 @@ if not exist "%PYTHON_EXE%" (
     "%CURRENT_DIR%scheduling_env\Scripts\python.exe" -m pip install --upgrade pip
     
     :: Install all required packages
-    echo [INFO] Installing all required packages...
-    "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install flask==2.3.3 pyodbc==4.0.39 pandas==2.0.3 openpyxl numpy
+    echo [INFO] Installing packages from requirements.txt...
+    "%CURRENT_DIR%scheduling_env\Scripts\pip.exe" install -r requirements.txt
     
     if %errorlevel% neq 0 (
         echo ERROR: Failed to install dependencies
@@ -216,8 +216,8 @@ if not exist "%PYTHON_EXE%" (
 )
 echo.
 
-:: Check application file
-echo [STEP 3/6] Checking application file...
+:: Check application file and requirements
+echo [STEP 3/6] Checking application files...
 if not exist "%APP_FILE%" (
     echo ERROR: web_scheduling_system.py not found
     echo Please ensure the application file is in the current directory
@@ -225,6 +225,14 @@ if not exist "%APP_FILE%" (
     exit /b 1
 )
 echo [SUCCESS] Application file found
+
+if not exist "requirements.txt" (
+    echo ERROR: requirements.txt not found
+    echo Please ensure requirements.txt is in the current directory
+    pause
+    exit /b 1
+)
+echo [SUCCESS] Requirements file found
 echo.
 
 :: Stop and remove existing service (if exists)
